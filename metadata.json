@@ -1,0 +1,5 @@
+{
+  "name": "Sunlight PR Printing",
+  "description": "A streamlined printing management interface with a maroon and yellow aesthetic, powered by a Turso database for real-time requisition tracking.",
+  "requestFramePermissions": []
+}
