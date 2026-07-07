@@ -269,7 +269,7 @@ const Receipt: React.FC<{ data: DocumentData; isDraft?: boolean }> = ({ data, is
          <div className="flex justify-center mt-0.5">
              <div className="w-1/3">
                 <div className="mb-1 text-center">APPROVED BY:</div>
-                <div className="border-b border-black w-full mb-0.5 text-center uppercase text-[10px] min-h-[15px]"></div>
+                <div className="border-b border-black w-full mb-0.5 text-center uppercase text-[10px] min-h-[15px]">{data.approvedBy || "ANGELO LIZARES"}</div>
                 <div className="text-[8px] text-center w-full">RESIDENT MANAGER</div>
              </div>
          </div>
