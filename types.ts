@@ -5,6 +5,7 @@ export interface OrderItem {
   unitPrice: number;
   total: number;
   remarks?: string;
+  soh?: number | string;
 }
 
 export interface DocumentData {

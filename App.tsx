@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { fetchDatabaseRecords, getDbConfig, saveDbConfig } from './services/dbService';
+import { fetchDatabaseRecords, getDbConfig, saveDbConfig, fetchSOH } from './services/dbService';
 import { DocumentData, PrintSettings } from './types';
 import PrintableDocument from './components/PrintableDocument';
 import toast, { Toaster } from 'react-hot-toast';
@@ -115,6 +115,25 @@ const App: React.FC = () => {
       });
     }
   }, [documents]);
+  
+  // Realtime SOH fetching for selected document
+  useEffect(() => {
+    if (!selectedDocId) return;
+    
+    const doc = documents.find(d => d.id === selectedDocId);
+    if (!doc) return;
+    
+    const fetchSOHForDoc = async () => {
+        const updatedItems = await Promise.all(doc.items.map(async (item) => {
+            const soh = await fetchSOH(doc.department, item.description);
+            return { ...item, soh: soh };
+        }));
+        
+        setDocuments(prevDocs => prevDocs.map(d => d.id === selectedDocId ? { ...d, items: updatedItems } : d));
+    };
+    
+    fetchSOHForDoc();
+  }, [selectedDocId]);
   
   // Print Settings State
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);

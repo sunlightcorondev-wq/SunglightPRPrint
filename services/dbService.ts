@@ -48,6 +48,8 @@ export const saveDbConfig = (url: string, authToken: string): void => {
 
 // Lazy initialization pattern
 let clientInstance: any = null;
+let inventoryClientInstance: any = null;
+let purchasingClientInstance: any = null;
 
 const getClient = () => {
   const config = getDbConfig();
@@ -61,6 +63,28 @@ const getClient = () => {
     });
   }
   return clientInstance;
+};
+
+const getInventoryClient = (department: string) => {
+  const isPurchasing = department.trim().toLowerCase() === 'purchasing';
+  
+  if (isPurchasing) {
+    if (!purchasingClientInstance) {
+      purchasingClientInstance = createClient({
+        url: "libsql://coronwarehousedb-sunlightcorondev.aws-ap-northeast-1.turso.io",
+        authToken: "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODM2NDQ0MDUsImlkIjoiMDE5ZjAyMTAtMGQwMS03N2RjLTkwYmItYjllYjU5MDlkMzZhIiwia2lkIjoicDN5bE95S3I2cUxRZ0dIYkpzTnJsZ0JSaWdYSjd3ZS05dmhQZVc2OFFQVSIsInJpZCI6IjYxYjgwMGNiLTJmZmItNGQwNC1hOTQzLTgwZTg5NzNmMWMxNiJ9.cZ20ri2CVO8WzlqrLtA2B3IxDHCLaxFtY8FNWNHhrx_IMdJkPeFQeZWJBm7yApd9kY5mOmceG1YW9ey-EWjtCQ"
+      });
+    }
+    return purchasingClientInstance;
+  } else {
+    if (!inventoryClientInstance) {
+      inventoryClientInstance = createClient({
+        url: "libsql://departmentinventory-sunlightcorondev.aws-ap-northeast-1.turso.io",
+        authToken: "eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJhIjoicnciLCJpYXQiOjE3ODM2NDI2MzIsImlkIjoiMDE5ZjEyN2ItMGYwMS03NTVmLThlN2EtYTRkNWU3MDNkNzdlIiwia2lkIjoicDN5bE95S3I2cUxRZ0dIYkpzTnJsZ0JSaWdYSjd3ZS05dmhQZVc2OFFQVSIsInJpZCI6IjI5NmUzNzFjLTkzZWItNDc1Zi04OWZkLTVmMzc2ODgwYTc4YiJ9.6PBm-s1tEHcXR3Y6PnxWcjgs3_Kw6Ge1StBEDoOii-RvCdW9VoZwrUbNKQ4lONWZKS4Fu9K1MKxUSHn4dQiqCQ"
+      });
+    }
+    return inventoryClientInstance;
+  }
 };
 
 export const updateRequisitionStatus = async (id: string, status: string): Promise<void> => {
@@ -125,15 +149,16 @@ export const fetchDatabaseRecords = async (): Promise<DocumentData[]> => {
              items = parsedItems.map((item: any) => {
                 const qty = Number(item.quantity || 0);
                 const cost = Number(item.estimatedCost || item.unitPrice || 0);
+                const description = String(item.name || item.description || "");
                 
                 return {
                   // Map 'name' -> Particulars (description)
-                  description: String(item.name || item.description || ""),
+                  description,
                   // Map 'quantity' -> Qty Request
                   quantity: qty,
                   // Map 'unit' -> UOM
                   uom: (() => {
-                    const desc = String(item.name || item.description || "").toLowerCase();
+                    const desc = description.toLowerCase();
                     const uom = String(item.unit || item.uom || "").toUpperCase();
                     if (desc.includes("emborg fresh milk") && uom === "CASE") {
                       return "PCS";
@@ -145,7 +170,8 @@ export const fetchDatabaseRecords = async (): Promise<DocumentData[]> => {
                   // Calculate Total
                   total: qty * cost,
                   // Map 'source' -> Remarks (optional but useful)
-                  remarks: String(item.source || item.remarks || "")
+                  remarks: String(item.source || item.remarks || ""),
+                  soh: ''
                 };
              });
           }
@@ -191,5 +217,38 @@ export const fetchDatabaseRecords = async (): Promise<DocumentData[]> => {
       console.error("Fallback Service also failed:", fallbackError);
       throw error;
     }
+  }
+};
+
+export const fetchSOH = async (department: string, itemName: string): Promise<number> => {
+  const isPurchasing = department.trim().toLowerCase() === 'purchasing';
+  try {
+    const client = getInventoryClient(department);
+    
+    let result;
+    if (isPurchasing) {
+      result = await client.execute({
+        sql: `SELECT sum(b.quantity) as total_quantity 
+              FROM batches b 
+              JOIN items i ON b.item_id = i.id 
+              WHERE LOWER(trim(i.name)) = ?`,
+        args: [itemName.trim().toLowerCase()]
+      });
+      if (result.rows.length > 0 && result.rows[0].total_quantity !== null) {
+        return Number(result.rows[0].total_quantity || 0);
+      }
+    } else {
+      result = await client.execute({
+        sql: `SELECT quantity FROM inventory WHERE LOWER(trim(department)) = ? AND LOWER(trim(name)) = ?`,
+        args: [department.trim().toLowerCase(), itemName.trim().toLowerCase()]
+      });
+      if (result.rows.length > 0 && result.rows[0].quantity !== null) {
+        return Number(result.rows[0].quantity || 0);
+      }
+    }
+    return 0;
+  } catch (err) {
+    console.error("Failed to fetch SOH:", err);
+    return 0;
   }
 };

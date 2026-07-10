@@ -155,7 +155,7 @@ const Receipt: React.FC<{ data: DocumentData; isDraft?: boolean }> = ({ data, is
                  return (
                  <tr key={idx} className="h-[18px]">
                     <td className="border-r border-black border-b border-gray-400 px-1 font-bold uppercase truncate">{item.description}</td>
-                    <td className="border-r border-black border-b border-gray-400 px-1"></td>
+                    <td className="border-r border-black border-b border-gray-400 px-1 text-center font-bold">{item.soh}</td>
                     <td className="border-r border-black border-b border-gray-400 px-1 text-center font-bold">{item.quantity}</td>
                     <td className="border-r border-black border-b border-gray-400 px-1 text-center">{item.uom}</td>
                     <td className="border-r border-black border-b border-gray-400 px-1"></td>
