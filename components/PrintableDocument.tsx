@@ -167,7 +167,7 @@ const Receipt: React.FC<{ data: DocumentData; isDraft?: boolean }> = ({ data, is
                     </td>
                     <td className="border-r border-black border-b border-gray-400 px-1">
                        {!isManila && (
-                        <div className="flex flex-col gap-[1px] text-[7px] leading-none pl-1">
+                        <div className="flex flex-row items-center gap-2 text-[7px] leading-none pl-1">
                            {isWarehouse ? (
                              <div className="flex items-center gap-1">
                                  <div className="w-1.5 h-1.5 border border-black bg-black"></div> 

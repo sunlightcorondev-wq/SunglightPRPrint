@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { fetchDatabaseRecords, getDbConfig, saveDbConfig, fetchSOH } from './services/dbService';
+import { fetchDatabaseRecords, getDbConfig, saveDbConfig, fetchSOH, updateRequisitionStatus } from './services/dbService';
 import { DocumentData, PrintSettings } from './types';
 import PrintableDocument from './components/PrintableDocument';
 import toast, { Toaster } from 'react-hot-toast';
@@ -125,6 +125,9 @@ const App: React.FC = () => {
     
     const fetchSOHForDoc = async () => {
         const updatedItems = await Promise.all(doc.items.map(async (item) => {
+            if (item.soh !== '' && item.soh !== undefined && item.soh !== null) {
+                return item;
+            }
             const soh = await fetchSOH(doc.department, item.description);
             return { ...item, soh: soh };
         }));
@@ -430,9 +433,23 @@ const App: React.FC = () => {
         newSet.add(id);
         return newSet;
     });
+
+    // 3. Persist to database so it is universal to all users
+    try {
+      await updateRequisitionStatus(id, 'For signing');
+    } catch (e) {
+      console.error("Failed to update status in database:", e);
+    }
   };
 
   const executePrint = async () => {
+    if (selectedDocId) {
+      await markDocumentAsProcessedLocally(selectedDocId);
+    }
+    if (printSettings.secondaryDocId) {
+      await markDocumentAsProcessedLocally(printSettings.secondaryDocId);
+    }
+
     // Check if in iframe (common in preview environments)
     const isIframe = window.self !== window.top;
     
@@ -452,8 +469,10 @@ const App: React.FC = () => {
               Open in New Tab
             </button>
             <button 
-              onClick={() => {
+              onClick={async () => {
                 toast.dismiss(t.id);
+                if (selectedDocId) await markDocumentAsProcessedLocally(selectedDocId);
+                if (printSettings.secondaryDocId) await markDocumentAsProcessedLocally(printSettings.secondaryDocId);
                 window.print();
               }}
               className="flex-1 py-2 px-3 bg-maroon-800 border border-maroon-700 text-maroon-100 rounded-lg text-xs"
@@ -469,13 +488,6 @@ const App: React.FC = () => {
         window.print();
       }
     } else {
-      if (selectedDocId) {
-        await markDocumentAsProcessedLocally(selectedDocId);
-      }
-      if (printSettings.secondaryDocId) {
-        await markDocumentAsProcessedLocally(printSettings.secondaryDocId);
-      }
-      
       window.print();
     }
   };

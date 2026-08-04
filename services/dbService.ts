@@ -150,6 +150,10 @@ export const fetchDatabaseRecords = async (): Promise<DocumentData[]> => {
                 const qty = Number(item.quantity || 0);
                 const cost = Number(item.estimatedCost || item.unitPrice || 0);
                 const description = String(item.name || item.description || "");
+                const source = String(item.source || "");
+                const itemRemarks = String(item.remarks || "");
+                const combinedRemarks = [source, itemRemarks].filter(Boolean).join(" ");
+                const availableStock = item.availableStock !== undefined ? item.availableStock : (item.available_stock !== undefined ? item.available_stock : '');
                 
                 return {
                   // Map 'name' -> Particulars (description)
@@ -169,9 +173,9 @@ export const fetchDatabaseRecords = async (): Promise<DocumentData[]> => {
                   unitPrice: cost,
                   // Calculate Total
                   total: qty * cost,
-                  // Map 'source' -> Remarks (optional but useful)
-                  remarks: String(item.source || item.remarks || ""),
-                  soh: ''
+                  // Map source and remarks
+                  remarks: combinedRemarks,
+                  soh: availableStock !== '' ? availableStock : ''
                 };
              });
           }
