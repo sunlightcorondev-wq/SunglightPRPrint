@@ -137,6 +137,8 @@ export const fetchDatabaseRecords = async (): Promise<DocumentData[]> => {
     // 2. Iterate and map each row
     for (const row of requisitionsResult.rows) {
       const id = String(row.id);
+      const deptName = String(row.department || '').trim().toLowerCase();
+      const isSecurity = deptName === 'security';
       
       let items: OrderItem[] = [];
 
@@ -153,7 +155,7 @@ export const fetchDatabaseRecords = async (): Promise<DocumentData[]> => {
                 const source = String(item.source || "");
                 const itemRemarks = String(item.remarks || "");
                 const combinedRemarks = [source, itemRemarks].filter(Boolean).join(" ");
-                const availableStock = item.availableStock !== undefined ? item.availableStock : (item.available_stock !== undefined ? item.available_stock : '');
+                const availableStock = isSecurity ? 0 : (item.availableStock !== undefined ? item.availableStock : (item.available_stock !== undefined ? item.available_stock : ''));
                 
                 return {
                   // Map 'name' -> Particulars (description)
@@ -175,7 +177,7 @@ export const fetchDatabaseRecords = async (): Promise<DocumentData[]> => {
                   total: qty * cost,
                   // Map source and remarks
                   remarks: combinedRemarks,
-                  soh: availableStock !== '' ? availableStock : ''
+                  soh: isSecurity ? 0 : (availableStock !== '' ? availableStock : '')
                 };
              });
           }
@@ -225,6 +227,9 @@ export const fetchDatabaseRecords = async (): Promise<DocumentData[]> => {
 };
 
 export const fetchSOH = async (department: string, itemName: string): Promise<number> => {
+  if (department.trim().toLowerCase() === 'security') {
+    return 0;
+  }
   const isPurchasing = department.trim().toLowerCase() === 'purchasing';
   try {
     const client = getInventoryClient(department);

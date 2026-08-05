@@ -124,7 +124,11 @@ const App: React.FC = () => {
     if (!doc) return;
     
     const fetchSOHForDoc = async () => {
+        const isSecurity = doc.department.trim().toLowerCase() === 'security';
         const updatedItems = await Promise.all(doc.items.map(async (item) => {
+            if (isSecurity) {
+                return { ...item, soh: 0 };
+            }
             if (item.soh !== '' && item.soh !== undefined && item.soh !== null) {
                 return item;
             }
