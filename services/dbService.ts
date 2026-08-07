@@ -139,6 +139,7 @@ export const fetchDatabaseRecords = async (): Promise<DocumentData[]> => {
       const id = String(row.id);
       const deptName = String(row.department || '').trim().toLowerCase();
       const isSecurity = deptName === 'security';
+      const isPurchasing = deptName === 'purchasing';
       
       let items: OrderItem[] = [];
 
@@ -155,7 +156,7 @@ export const fetchDatabaseRecords = async (): Promise<DocumentData[]> => {
                 const source = String(item.source || "");
                 const itemRemarks = String(item.remarks || "");
                 const combinedRemarks = [source, itemRemarks].filter(Boolean).join(" ");
-                const availableStock = isSecurity ? 0 : (item.availableStock !== undefined ? item.availableStock : (item.available_stock !== undefined ? item.available_stock : ''));
+                const availableStock = isPurchasing ? (item.availableStock !== undefined ? item.availableStock : (item.available_stock !== undefined ? item.available_stock : '')) : '';
                 
                 return {
                   // Map 'name' -> Particulars (description)
@@ -177,7 +178,7 @@ export const fetchDatabaseRecords = async (): Promise<DocumentData[]> => {
                   total: qty * cost,
                   // Map source and remarks
                   remarks: combinedRemarks,
-                  soh: isSecurity ? 0 : (availableStock !== '' ? availableStock : '')
+                  soh: isSecurity ? 0 : (isPurchasing ? (availableStock !== '' ? availableStock : '') : '')
                 };
              });
           }
@@ -227,10 +228,11 @@ export const fetchDatabaseRecords = async (): Promise<DocumentData[]> => {
 };
 
 export const fetchSOH = async (department: string, itemName: string): Promise<number> => {
-  if (department.trim().toLowerCase() === 'security') {
+  const deptTrim = department.trim().toLowerCase();
+  if (deptTrim === 'security') {
     return 0;
   }
-  const isPurchasing = department.trim().toLowerCase() === 'purchasing';
+  const isPurchasing = deptTrim === 'purchasing';
   try {
     const client = getInventoryClient(department);
     
@@ -249,7 +251,7 @@ export const fetchSOH = async (department: string, itemName: string): Promise<nu
     } else {
       result = await client.execute({
         sql: `SELECT quantity FROM inventory WHERE LOWER(trim(department)) = ? AND LOWER(trim(name)) = ?`,
-        args: [department.trim().toLowerCase(), itemName.trim().toLowerCase()]
+        args: [deptTrim, itemName.trim().toLowerCase()]
       });
       if (result.rows.length > 0 && result.rows[0].quantity !== null) {
         return Number(result.rows[0].quantity || 0);
