@@ -178,7 +178,7 @@ export const fetchDatabaseRecords = async (): Promise<DocumentData[]> => {
                   total: qty * cost,
                   // Map source and remarks
                   remarks: combinedRemarks,
-                  soh: isSecurity ? 0 : (isPurchasing ? (availableStock !== '' ? availableStock : '') : '')
+                  soh: item.soh !== undefined && item.soh !== null && item.soh !== '' ? item.soh : (isSecurity ? 0 : (isPurchasing ? (availableStock !== '' ? availableStock : '') : ''))
                 };
              });
           }
