@@ -99,6 +99,19 @@ export const updateRequisitionStatus = async (id: string, status: string): Promi
   }
 };
 
+export const deleteRequisition = async (id: string): Promise<void> => {
+  try {
+    const client = getClient();
+    await client.execute({
+      sql: "DELETE FROM requisitions WHERE id = ?",
+      args: [id]
+    });
+  } catch (error) {
+    console.error("Failed to delete requisition from DB:", error);
+    throw error;
+  }
+};
+
 export const fetchDatabaseRecords = async (): Promise<DocumentData[]> => {
   try {
     console.log("Attempting to connect to Turso DB...");
@@ -108,8 +121,7 @@ export const fetchDatabaseRecords = async (): Promise<DocumentData[]> => {
     // We select all columns, which includes the 'items' JSON column
     const requisitionsResult = await client.execute(`
       SELECT * FROM requisitions 
-      ORDER BY date ASC 
-      LIMIT 50
+      ORDER BY date ASC
     `);
 
     // Fetch department heads config

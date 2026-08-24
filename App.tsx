@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { fetchDatabaseRecords, getDbConfig, saveDbConfig, fetchSOH, updateRequisitionStatus } from './services/dbService';
+import { fetchDatabaseRecords, getDbConfig, saveDbConfig, fetchSOH, updateRequisitionStatus, deleteRequisition } from './services/dbService';
 import { DocumentData, PrintSettings } from './types';
 import PrintableDocument from './components/PrintableDocument';
 import toast, { Toaster } from 'react-hot-toast';
@@ -22,7 +22,8 @@ import {
   ArrowRight,
   Bell,
   BellOff,
-  Volume2
+  Volume2,
+  Trash2
 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -423,6 +424,24 @@ const App: React.FC = () => {
 
   const handlePrintRequest = () => {
     setIsPrintModalOpen(true);
+  };
+
+  const handleDeleteRequisition = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (!window.confirm(`Are you sure you want to delete requisition #${id}?`)) {
+      return;
+    }
+    try {
+      await deleteRequisition(id);
+      setDocuments(prev => prev.filter(d => d.id !== id));
+      if (selectedDocId === id) {
+        const remaining = documents.filter(d => d.id !== id);
+        setSelectedDocId(remaining.length > 0 ? remaining[0].id : null);
+      }
+      toast.success(`Requisition #${id} deleted`);
+    } catch (err) {
+      toast.error("Failed to delete requisition");
+    }
   };
 
   const markDocumentAsProcessedLocally = async (id: string) => {
@@ -964,11 +983,21 @@ const App: React.FC = () => {
                        {getStatusIcon(doc.status)}
                        <span>{doc.status}</span>
                      </div>
-                     <span className={`font-mono text-[10px] font-bold ${
-                       selectedDocId === doc.id ? 'text-gold-500' : 'text-maroon-500'
-                     }`}>
-                       #{doc.id}
-                     </span>
+                     <div className="flex items-center gap-2">
+                       <button
+                         type="button"
+                         onClick={(e) => handleDeleteRequisition(e, doc.id)}
+                         className="opacity-0 group-hover:opacity-100 p-1 text-maroon-400 hover:text-red-400 hover:bg-maroon-900 rounded transition-all"
+                         title="Delete requisition"
+                       >
+                         <Trash2 className="w-3.5 h-3.5" />
+                       </button>
+                       <span className={`font-mono text-[10px] font-bold ${
+                         selectedDocId === doc.id ? 'text-gold-500' : 'text-maroon-500'
+                       }`}>
+                         #{doc.id}
+                       </span>
+                     </div>
                   </div>
                 </button>
               );
