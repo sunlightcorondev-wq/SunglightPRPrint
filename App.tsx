@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { fetchDatabaseRecords, getDbConfig, saveDbConfig, fetchSOH, updateRequisitionStatus, deleteRequisition } from './services/dbService';
 import { DocumentData, PrintSettings } from './types';
-import PrintableDocument from './components/PrintableDocument';
+import PrintableDocument, { ITEM_LIMIT_ONE_PAGE, splitItemsIntoPages } from './components/PrintableDocument';
 import toast, { Toaster } from 'react-hot-toast';
 import { 
   Printer, 
@@ -537,7 +537,8 @@ const App: React.FC = () => {
       filename: `Requisition_${selectedDoc?.id || 'doc'}.pdf`,
       image: { type: 'jpeg', quality: 0.98 },
       html2canvas: { scale: 2, useCORS: true },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak: { mode: ['css', 'legacy'] }
     };
     
     (window as any).html2pdf().set(opt).from(element).save().then(() => {
@@ -599,6 +600,11 @@ const App: React.FC = () => {
       
       /* Hide scrollbars */
       ::-webkit-scrollbar { display: none; }
+
+      .page-sheet-container {
+        margin-bottom: 0 !important;
+        box-shadow: none !important;
+      }
     }
     
     /* Splash Screen Animations */
@@ -748,6 +754,23 @@ const App: React.FC = () => {
                         </option>
                       ))}
                     </select>
+                  </div>
+                )}
+
+                {/* Multi-page Notice */}
+                {selectedDoc && splitItemsIntoPages(selectedDoc.items).length > 1 && (
+                  <div className="p-3 bg-maroon-950/60 border border-gold-500/30 rounded-xl flex items-start gap-3">
+                    <div className="p-1.5 bg-gold-500/20 text-gold-400 rounded-lg shrink-0 mt-0.5">
+                      <FileText className="w-4 h-4" />
+                    </div>
+                    <div className="text-xs">
+                      <div className="font-bold text-gold-400">
+                        Multi-page Requisition ({splitItemsIntoPages(selectedDoc.items).length} Pages)
+                      </div>
+                      <div className="text-maroon-200 mt-0.5">
+                        Contains {selectedDoc.items.length} items across {splitItemsIntoPages(selectedDoc.items).length} pages. Form fills empty rows across full pages, with signatories exclusively on the final page.
+                      </div>
+                    </div>
                   </div>
                 )}
 
@@ -944,14 +967,24 @@ const App: React.FC = () => {
               const processed = isDocProcessed(doc);
               const isNew = doc.status === 'Pending';
               return (
-                <button
+                <div
                   key={doc.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => {
                     setSelectedDocId(doc.id);
                     setPrintSettings(prev => ({ ...prev, secondaryDocId: null }));
                     setIsSidebarOpen(false);
                   }}
-                  className={`w-full text-left p-4 rounded-xl transition-all duration-200 group border ${
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedDocId(doc.id);
+                      setPrintSettings(prev => ({ ...prev, secondaryDocId: null }));
+                      setIsSidebarOpen(false);
+                    }
+                  }}
+                  className={`w-full text-left p-4 rounded-xl transition-all duration-200 group border cursor-pointer select-none ${
                     selectedDocId === doc.id 
                       ? 'bg-maroon-950 border-gold-500 shadow-[0_0_20px_rgba(0,0,0,0.4)] scale-[1.02]' 
                       : 'bg-transparent border-transparent hover:bg-maroon-800/50 hover:border-maroon-700'
@@ -999,7 +1032,7 @@ const App: React.FC = () => {
                        </span>
                      </div>
                   </div>
-                </button>
+                </div>
               );
             })
           )}
@@ -1108,6 +1141,15 @@ const App: React.FC = () => {
                <FileText className="w-4 h-4 text-gold-500" />
                <span>{documents.length} Records</span>
              </span>
+             {selectedDoc && splitItemsIntoPages(selectedDoc.items).length > 1 && (
+               <>
+                 <span className="text-maroon-700 hidden md:inline">|</span>
+                 <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-gold-500/20 text-gold-400 border border-gold-500/30">
+                   <FileText className="w-3.5 h-3.5" />
+                   {splitItemsIntoPages(selectedDoc.items).length} Pages ({selectedDoc.items.length} items)
+                 </span>
+               </>
+             )}
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
