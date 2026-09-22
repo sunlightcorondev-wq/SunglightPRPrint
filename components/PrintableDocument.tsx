@@ -19,14 +19,14 @@ const formatDate = (dateString: string): string => {
   });
 };
 
-// Calibrated limits:
+// Calibrated limits for A4 paper:
 // - Up to 10 items fits comfortably on Half A4 (144mm height)
-// - A single full A4 page (with signatories) holds up to 34 items
-// - Non-last pages (no signatories) can hold and fill up to 46 rows
-// - Last page (with signatories) holds up to 34 rows
+// - A single full A4 page (with signatories) holds up to 32 items
+// - Non-last pages (no signatories) hold up to 44 rows
+// - Last page (with signatories) holds up to 32 rows
 export const ITEM_LIMIT_HALF_PAGE = 10;
-export const MAX_ITEMS_LAST_PAGE = 34;
-export const MAX_ITEMS_INTERMEDIATE_PAGE = 46;
+export const MAX_ITEMS_LAST_PAGE = 32;
+export const MAX_ITEMS_INTERMEDIATE_PAGE = 44;
 export const ITEM_LIMIT_ONE_PAGE = MAX_ITEMS_LAST_PAGE;
 
 export const splitItemsIntoPages = (items: OrderItem[]): OrderItem[][] => {
@@ -39,9 +39,9 @@ export const splitItemsIntoPages = (items: OrderItem[]): OrderItem[][] => {
   }
 
   // Multi-page distribution:
-  // Can it fit in 2 pages? (Page 1 up to 46 items + Page 2 up to 34 items = 80 items capacity)
+  // Can it fit in 2 pages? (Page 1 up to 44 items + Page 2 up to 32 items = 76 items capacity)
   if (items.length <= (MAX_ITEMS_INTERMEDIATE_PAGE + MAX_ITEMS_LAST_PAGE)) {
-    // 2 pages: Page 2 cannot exceed MAX_ITEMS_LAST_PAGE (34)
+    // 2 pages: Page 2 cannot exceed MAX_ITEMS_LAST_PAGE (32)
     const targetPage2 = Math.min(MAX_ITEMS_LAST_PAGE, Math.floor(items.length / 2));
     const page1Count = items.length - targetPage2;
     return [
@@ -98,16 +98,16 @@ const Receipt: React.FC<ReceiptProps> = ({
   const isManila = data.pr_for.toLowerCase() === 'manila';
   const isLastPage = pageNumber === totalPages;
 
-  // Dimensions
+  // Dimensions: 210mm x 296.5mm ensures 100% full A4 coverage with zero trailing overflow
   const dim = {
     width: '210mm',
-    height: isHalfPage ? '144mm' : '297mm' // Full A4 vs Half A4
+    height: isHalfPage ? '144mm' : '296.5mm' // Full A4 vs Half A4
   };
 
   // Determine rows to render:
   // - Half page: 10 rows
-  // - Non-last page (no signatories): 46 rows (fills the whole page down to the bottom)
-  // - Last page (has signatories): 34 rows (fills down to signatories)
+  // - Non-last page (no signatories): 44 rows (fills the whole page down to the bottom)
+  // - Last page (has signatories): 32 rows (fills down to signatories)
   const minRows = isHalfPage 
     ? ITEM_LIMIT_HALF_PAGE 
     : isLastPage 
@@ -135,11 +135,12 @@ const Receipt: React.FC<ReceiptProps> = ({
       style={{
         width: dim.width,
         height: dim.height,
+        maxHeight: dim.height,
         fontFamily: 'Arial, sans-serif',
-        paddingTop: isHalfPage ? '1mm' : '2.5mm',
-        paddingRight: '2.5mm',
-        paddingBottom: isHalfPage ? '1mm' : '2.5mm',
-        paddingLeft: '2.5mm',
+        paddingTop: isHalfPage ? '1mm' : '3mm',
+        paddingRight: '3.5mm',
+        paddingBottom: isHalfPage ? '1mm' : '3mm',
+        paddingLeft: '3.5mm',
         // Add a cut line at the bottom if it's the first copy AND it's a half-page form
         borderBottom: (!isDraft && isHalfPage) ? '1px dashed #9ca3af' : 'none' 
       }}
@@ -221,7 +222,7 @@ const Receipt: React.FC<ReceiptProps> = ({
 
         {/* Table Area - flex-1 expands to utilize all vertical space down to the footer/signatories */}
         <div className="border-[1.5px] border-black my-1 flex-1 flex flex-col justify-between overflow-hidden">
-           <table className="w-full text-[9px] border-collapse h-full">
+           <table className="w-full table-fixed text-[9px] border-collapse h-full">
               <thead>
                  <tr className={`text-center font-bold text-black ${isHalfPage ? 'h-[18px]' : 'h-[21px]'}`}>
                     <th className="border-r border-black border-b px-1 py-0.5 w-[30%]">PARTICULARS</th>
@@ -231,8 +232,8 @@ const Receipt: React.FC<ReceiptProps> = ({
                     <th className="border-r border-black border-b px-1 py-0.5 w-[8%]">ACTUAL DEL.</th>
                     <th className="border-r border-black border-b px-1 py-0.5 w-[10%]">UNIT COST</th>
                     <th className="border-r border-black border-b px-1 py-0.5 w-[10%]">TOTAL</th>
-                    <th className="border-r border-black border-b px-1 py-0.5 w-[14%]">{isManila ? '' : 'MODE OF PAYMENT'}</th>
-                    <th className="border-b border-black px-1 py-0.5">REMARKS</th>
+                    <th className="border-r border-black border-b px-1 py-0.5 w-[12%]">{isManila ? '' : 'MODE OF PAYMENT'}</th>
+                    <th className="border-b border-black px-1 py-0.5 w-[12%]">REMARKS</th>
                  </tr>
               </thead>
               <tbody className="text-black">
@@ -430,10 +431,12 @@ const PrintableDocument: React.FC<PrintableDocumentProps> = ({
           {isHalfPage ? (
             // Half-page layout: can pair original + draft or primary + secondary on single sheet
             <div 
-              className="page-sheet-container print:m-0"
+              className="page-sheet-container print:m-0 box-border w-[210mm] max-w-[210mm]"
               style={{ 
                 pageBreakAfter: copyIndex < copies - 1 ? 'always' : 'auto', 
-                breakAfter: copyIndex < copies - 1 ? 'page' : 'auto' 
+                breakAfter: copyIndex < copies - 1 ? 'page' : 'auto',
+                pageBreakInside: 'avoid',
+                breakInside: 'avoid'
               }}
             >
               <Receipt 
@@ -495,10 +498,12 @@ const PrintableDocument: React.FC<PrintableDocumentProps> = ({
                 return (
                   <div 
                     key={`orig-p${pageNumber}-c${copyIndex}`}
-                    className="page-sheet-container print:m-0 mb-6 print:mb-0 shadow-2xl print:shadow-none"
+                    className="page-sheet-container print:m-0 mb-6 print:mb-0 shadow-2xl print:shadow-none box-border w-[210mm] max-w-[210mm]"
                     style={{ 
                       pageBreakAfter: isLast ? 'auto' : 'always', 
-                      breakAfter: isLast ? 'auto' : 'page' 
+                      breakAfter: isLast ? 'auto' : 'page',
+                      pageBreakInside: 'avoid',
+                      breakInside: 'avoid'
                     }}
                   >
                     <Receipt 
@@ -520,10 +525,12 @@ const PrintableDocument: React.FC<PrintableDocumentProps> = ({
                 return (
                   <div 
                     key={`draft-p${pageNumber}-c${copyIndex}`}
-                    className="page-sheet-container print:m-0 mb-6 print:mb-0 shadow-2xl print:shadow-none"
+                    className="page-sheet-container print:m-0 mb-6 print:mb-0 shadow-2xl print:shadow-none box-border w-[210mm] max-w-[210mm]"
                     style={{ 
                       pageBreakAfter: isLast ? 'auto' : 'always', 
-                      breakAfter: isLast ? 'auto' : 'page' 
+                      breakAfter: isLast ? 'auto' : 'page',
+                      pageBreakInside: 'avoid',
+                      breakInside: 'avoid'
                     }}
                   >
                     <Receipt 

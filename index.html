@@ -45,8 +45,15 @@
     </script>
     <style>
       @media print {
-        @page { margin: 0; size: auto; }
-        body { -webkit-print-color-adjust: exact; }
+        @page { margin: 0; size: A4 portrait; }
+        html, body {
+          width: 210mm;
+          margin: 0 !important;
+          padding: 0 !important;
+          background: #ffffff !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
       }
       /* Custom scrollbar for aesthetic feel */
       ::-webkit-scrollbar {

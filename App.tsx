@@ -473,6 +473,9 @@ const App: React.FC = () => {
       await markDocumentAsProcessedLocally(printSettings.secondaryDocId);
     }
 
+    // Close print modal so overlay/blur is dismissed before print dialog opens
+    setIsPrintModalOpen(false);
+
     // Check if in iframe (common in preview environments)
     const isIframe = window.self !== window.top;
     
@@ -496,7 +499,7 @@ const App: React.FC = () => {
                 toast.dismiss(t.id);
                 if (selectedDocId) await markDocumentAsProcessedLocally(selectedDocId);
                 if (printSettings.secondaryDocId) await markDocumentAsProcessedLocally(printSettings.secondaryDocId);
-                window.print();
+                setTimeout(() => window.print(), 100);
               }}
               className="flex-1 py-2 px-3 bg-maroon-800 border border-maroon-700 text-maroon-100 rounded-lg text-xs"
             >
@@ -506,12 +509,12 @@ const App: React.FC = () => {
         </div>
       ), { duration: 10000, position: 'bottom-center', style: { background: '#4a0404', border: '1px solid #e3a008' } });
       
-      // If mobile, we also trigger it immediately but the toast stays for guidance
+      // If mobile, we also trigger it after a short delay to let modal close
       if (window.innerWidth < 1024) {
-        window.print();
+        setTimeout(() => window.print(), 150);
       }
     } else {
-      window.print();
+      setTimeout(() => window.print(), 150);
     }
   };
 
@@ -532,6 +535,12 @@ const App: React.FC = () => {
         return;
     }
 
+    // Dismiss modal and temporarily reset scale transform for crisp, unscaled 1:1 A4 canvas capture
+    setIsPrintModalOpen(false);
+    const innerScaler = document.querySelector('.preview-inner-scale') as HTMLElement;
+    const prevTransform = innerScaler ? innerScaler.style.transform : '';
+    if (innerScaler) innerScaler.style.transform = 'none';
+
     const opt = {
       margin: 0,
       filename: `Requisition_${selectedDoc?.id || 'doc'}.pdf`,
@@ -541,14 +550,17 @@ const App: React.FC = () => {
       pagebreak: { mode: ['css', 'legacy'] }
     };
     
-    (window as any).html2pdf().set(opt).from(element).save().then(() => {
+    try {
+      await (window as any).html2pdf().set(opt).from(element).save();
       if (Notification.permission === 'granted') {
         new Notification("PDF Exported", {
           body: `Requisition #${selectedDoc?.id || 'doc'} has been successfully exported.`,
           icon: '/vite.svg'
         });
       }
-    });
+    } finally {
+      if (innerScaler) innerScaler.style.transform = prevTransform;
+    }
   };
 
   const getStatusIcon = (status: string) => {
@@ -564,46 +576,98 @@ const App: React.FC = () => {
   const printStyles = `
     @media print {
       @page {
-        size: ${printSettings.paperSize} ${printSettings.orientation};
+        size: ${printSettings.paperSize || 'A4'} ${printSettings.orientation || 'portrait'};
         margin: 0;
       }
       
-      /* Reset global layout styles that might clip content */
-      html, body, #root {
+      /* Reset global layout styles that might clip content or inject scrollbars */
+      html, body {
+        width: 210mm !important;
         height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
         overflow: visible !important;
-        background: white !important;
+        background: #ffffff !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
       }
 
-      body { -webkit-print-color-adjust: exact; }
-      
-      /* Hide everything by default */
-      body * { visibility: hidden; }
-      
-      /* Only show the printable area and its children */
-      #printable-area, #printable-area * { 
-        visibility: visible; 
+      /* Completely hide all non-printable UI elements */
+      .print\\:hidden,
+      .fixed,
+      aside,
+      nav,
+      header,
+      button,
+      [role="dialog"] {
+        display: none !important;
       }
-      
-      /* Position the printable area at the top-left of the page */
-      #printable-area {
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 100%;
-        margin: 0;
-        padding: 0;
-        box-shadow: none;
-        background: white;
-        color: black;
+
+      /* Reset preview scaling so it renders at pure 100% 1:1 scale on A4 */
+      #root,
+      #root > div,
+      .preview-container,
+      .preview-scale-wrapper,
+      .preview-inner-scale {
+        width: 210mm !important;
+        max-width: 210mm !important;
+        min-width: 210mm !important;
+        height: auto !important;
+        min-height: 0 !important;
+        transform: none !important;
+        position: static !important;
+        overflow: visible !important;
+        margin: 0 auto !important;
+        padding: 0 !important;
+        background: transparent !important;
+        box-shadow: none !important;
+        filter: none !important;
+        opacity: 1 !important;
       }
       
       /* Hide scrollbars */
-      ::-webkit-scrollbar { display: none; }
+      ::-webkit-scrollbar { display: none !important; }
+
+      #printable-area {
+        display: block !important;
+        position: static !important;
+        width: 210mm !important;
+        max-width: 210mm !important;
+        min-width: 210mm !important;
+        margin: 0 auto !important;
+        padding: 0 !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+        box-shadow: none !important;
+        overflow: visible !important;
+      }
+
+      #printable-area * {
+        visibility: visible !important;
+      }
 
       .page-sheet-container {
-        margin-bottom: 0 !important;
+        display: block !important;
+        width: 210mm !important;
+        max-width: 210mm !important;
+        min-width: 210mm !important;
+        height: 297mm !important;
+        max-height: 297mm !important;
+        box-sizing: border-box !important;
+        margin: 0 auto !important;
+        padding: 0 !important;
+        background: #ffffff !important;
         box-shadow: none !important;
+        page-break-after: always !important;
+        break-after: page !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+        overflow: hidden !important;
+      }
+
+      .page-sheet-container:last-child {
+        page-break-after: auto !important;
+        break-after: auto !important;
       }
     }
     
@@ -1165,7 +1229,7 @@ const App: React.FC = () => {
         </div>
 
         {/* Preview Area */}
-        <div className="flex-1 overflow-auto bg-maroon-950 p-4 md:p-8 flex justify-start lg:justify-center items-start print:p-0 print:overflow-visible relative" ref={previewContainerRef}>
+        <div className="flex-1 overflow-auto bg-maroon-950 p-4 md:p-8 flex justify-start lg:justify-center items-start print:p-0 print:overflow-visible relative preview-container" ref={previewContainerRef}>
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-full text-maroon-400 space-y-4">
                <div className="w-16 h-16 border-4 border-maroon-800 border-t-gold-500 rounded-full animate-spin"></div>
@@ -1173,7 +1237,7 @@ const App: React.FC = () => {
             </div>
           ) : selectedDoc ? (
             <div 
-              className={`transition-all duration-300 print:opacity-100 print:filter-none print:scale-100 ${
+              className={`transition-all duration-300 print:opacity-100 print:filter-none print:scale-100 preview-scale-wrapper ${
                 isPrintModalOpen ? 'opacity-50 blur-sm scale-95' : 'opacity-100 scale-100 animate-fadeInUp'
               }`} 
               style={{ 
@@ -1182,6 +1246,7 @@ const App: React.FC = () => {
               }}
             >
               <div 
+                className="preview-inner-scale"
                 style={{ 
                   transform: `scale(${scale})`, 
                   transformOrigin: 'top left',
