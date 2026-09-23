@@ -580,49 +580,72 @@ const App: React.FC = () => {
         margin: 0;
       }
       
-      /* Reset global layout styles that might clip content or inject scrollbars */
+      /* Global CSS resets for clean print */
+      *, *::before, *::after {
+        box-shadow: none !important;
+        text-shadow: none !important;
+      }
+
       html, body {
         width: 210mm !important;
         height: auto !important;
+        min-height: 0 !important;
         margin: 0 !important;
         padding: 0 !important;
         overflow: visible !important;
         background: #ffffff !important;
+        background-color: #ffffff !important;
+        color: #000000 !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
 
-      /* Completely hide all non-printable UI elements */
+      /* Completely remove non-printable elements from the layout flow */
       .print\\:hidden,
       .fixed,
       aside,
       nav,
       header,
       button,
-      [role="dialog"] {
+      [role="dialog"],
+      [role="status"],
+      .toaster,
+      div[style*="z-index: 9999"],
+      div[style*="z-index:9999"],
+      div[style*="z-index: 50"] {
         display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        width: 0 !important;
+        overflow: hidden !important;
       }
 
-      /* Reset preview scaling so it renders at pure 100% 1:1 scale on A4 */
+      /* Reset all ancestor wrappers completely to pure white and zero margins/heights */
       #root,
       #root > div,
+      .app-root-container,
+      .main-content-area,
       .preview-container,
       .preview-scale-wrapper,
       .preview-inner-scale {
+        display: block !important;
+        position: static !important;
         width: 210mm !important;
         max-width: 210mm !important;
         min-width: 210mm !important;
         height: auto !important;
         min-height: 0 !important;
-        transform: none !important;
-        position: static !important;
-        overflow: visible !important;
-        margin: 0 auto !important;
+        max-height: none !important;
+        margin: 0 !important;
         padding: 0 !important;
-        background: transparent !important;
-        box-shadow: none !important;
+        border: none !important;
+        background: #ffffff !important;
+        background-color: #ffffff !important;
+        overflow: visible !important;
+        transform: none !important;
         filter: none !important;
         opacity: 1 !important;
+        animation: none !important;
       }
       
       /* Hide scrollbars */
@@ -634,11 +657,11 @@ const App: React.FC = () => {
         width: 210mm !important;
         max-width: 210mm !important;
         min-width: 210mm !important;
-        margin: 0 auto !important;
+        margin: 0 !important;
         padding: 0 !important;
         background: #ffffff !important;
+        background-color: #ffffff !important;
         color: #000000 !important;
-        box-shadow: none !important;
         overflow: visible !important;
       }
 
@@ -654,10 +677,10 @@ const App: React.FC = () => {
         height: 297mm !important;
         max-height: 297mm !important;
         box-sizing: border-box !important;
-        margin: 0 auto !important;
+        margin: 0 !important;
         padding: 0 !important;
         background: #ffffff !important;
-        box-shadow: none !important;
+        background-color: #ffffff !important;
         page-break-after: always !important;
         break-after: page !important;
         page-break-inside: avoid !important;
@@ -739,8 +762,8 @@ const App: React.FC = () => {
 
   // MAIN APP RENDER
   return (
-    <div className="flex h-screen bg-maroon-950 text-white overflow-hidden relative">
-      <Toaster />
+    <div className="flex h-screen bg-maroon-950 text-white overflow-hidden relative print:block print:h-auto print:min-h-0 print:bg-white print:p-0 print:m-0 print:overflow-visible app-root-container">
+      <div className="print:hidden"><Toaster /></div>
       <style>{printStyles}</style>
 
       {/* Print Settings Modal */}
@@ -1151,7 +1174,7 @@ const App: React.FC = () => {
       </div>
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden bg-maroon-950 pt-16 lg:pt-0">
+      <div className="flex-1 flex flex-col h-full overflow-hidden bg-maroon-950 pt-16 lg:pt-0 print:block print:h-auto print:min-h-0 print:bg-white print:p-0 print:m-0 print:overflow-visible main-content-area">
         
         {/* Mobile Floating Action Button */}
         {selectedDoc && !isPrintModalOpen && (
@@ -1229,7 +1252,7 @@ const App: React.FC = () => {
         </div>
 
         {/* Preview Area */}
-        <div className="flex-1 overflow-auto bg-maroon-950 p-4 md:p-8 flex justify-start lg:justify-center items-start print:p-0 print:overflow-visible relative preview-container" ref={previewContainerRef}>
+        <div className="flex-1 overflow-auto bg-maroon-950 p-4 md:p-8 flex justify-start lg:justify-center items-start print:block print:h-auto print:min-h-0 print:bg-white print:p-0 print:m-0 print:overflow-visible relative preview-container" ref={previewContainerRef}>
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-full text-maroon-400 space-y-4">
                <div className="w-16 h-16 border-4 border-maroon-800 border-t-gold-500 rounded-full animate-spin"></div>
@@ -1237,7 +1260,7 @@ const App: React.FC = () => {
             </div>
           ) : selectedDoc ? (
             <div 
-              className={`transition-all duration-300 print:opacity-100 print:filter-none print:scale-100 preview-scale-wrapper ${
+              className={`transition-all duration-300 print:opacity-100 print:filter-none print:scale-100 print:animate-none print:transform-none print:w-[210mm] print:m-0 print:p-0 preview-scale-wrapper ${
                 isPrintModalOpen ? 'opacity-50 blur-sm scale-95' : 'opacity-100 scale-100 animate-fadeInUp'
               }`} 
               style={{ 
@@ -1246,7 +1269,7 @@ const App: React.FC = () => {
               }}
             >
               <div 
-                className="preview-inner-scale"
+                className="preview-inner-scale print:transform-none print:w-[210mm] print:m-0 print:p-0"
                 style={{ 
                   transform: `scale(${scale})`, 
                   transformOrigin: 'top left',

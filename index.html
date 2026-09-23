@@ -46,13 +46,18 @@
     <style>
       @media print {
         @page { margin: 0; size: A4 portrait; }
-        html, body {
-          width: 210mm;
+        html, body, #root {
+          width: 210mm !important;
+          height: auto !important;
+          min-height: 0 !important;
           margin: 0 !important;
           padding: 0 !important;
           background: #ffffff !important;
+          background-color: #ffffff !important;
+          color: #000000 !important;
           -webkit-print-color-adjust: exact !important;
           print-color-adjust: exact !important;
+          overflow: visible !important;
         }
       }
       /* Custom scrollbar for aesthetic feel */
@@ -84,8 +89,8 @@
 </script>
 <link rel="stylesheet" href="/index.css">
 </head>
-  <body class="bg-maroon-950 text-white h-screen overflow-hidden selection:bg-gold-400 selection:text-maroon-900">
-    <div id="root" class="h-full"></div>
+  <body class="bg-maroon-950 print:bg-white text-white print:text-black h-screen print:h-auto overflow-hidden print:overflow-visible selection:bg-gold-400 selection:text-maroon-900">
+    <div id="root" class="h-full print:h-auto print:bg-white"></div>
   <script type="module" src="/index.tsx"></script>
 </body>
 </html>
