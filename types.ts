@@ -35,6 +35,7 @@ export interface PrintSettings {
   orientation: 'portrait' | 'landscape';
   showDraft?: boolean;
   secondaryDocId?: string | null;
+  priceDisplay?: 'blank' | 'hidden' | 'show';
 }
 
 export interface AppState {

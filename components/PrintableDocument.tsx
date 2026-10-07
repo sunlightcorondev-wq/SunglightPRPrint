@@ -84,6 +84,7 @@ interface ReceiptProps {
   pageItems: OrderItem[];
   allItems: OrderItem[];
   isDraft?: boolean;
+  settings?: PrintSettings;
 }
 
 const Receipt: React.FC<ReceiptProps> = ({ 
@@ -92,11 +93,19 @@ const Receipt: React.FC<ReceiptProps> = ({
   totalPages, 
   pageItems, 
   allItems, 
-  isDraft = false 
+  isDraft = false,
+  settings
 }) => {
   const isHalfPage = allItems.length <= ITEM_LIMIT_HALF_PAGE && totalPages === 1;
   const isManila = data.pr_for.toLowerCase() === 'manila';
   const isLastPage = pageNumber === totalPages;
+
+  // Price visibility: default is 'blank' (prices removed from form, blank columns for manual entry)
+  // 'hidden' removes price columns entirely
+  // 'show' displays calculated prices
+  const priceDisplay = settings?.priceDisplay || 'blank';
+  const showPrices = priceDisplay === 'show';
+  const hidePriceColumns = priceDisplay === 'hidden';
 
   // Dimensions: 210mm x 296.5mm ensures 100% full A4 coverage with zero trailing overflow
   const dim = {
@@ -117,17 +126,11 @@ const Receipt: React.FC<ReceiptProps> = ({
   const emptyRows = Math.max(0, minRows - pageItems.length);
   const rowHeightClass = isHalfPage ? "h-[18px]" : "h-[20px]";
 
-  // Subtotal for current page (non-purchase items)
-  const pageSubtotal = pageItems.reduce((sum, item) => {
-    const isPurchase = (item.remarks || "").toLowerCase().includes('purchase');
-    return isPurchase ? sum : sum + item.unitPrice;
-  }, 0);
+  // Subtotal for current page (only shown when showPrices is true)
+  const pageSubtotal = pageItems.reduce((sum, item) => sum + (item.unitPrice || 0), 0);
 
-  // Overall grand total across all items
-  const overallGrandTotal = allItems.reduce((sum, item) => {
-    const isPurchase = (item.remarks || "").toLowerCase().includes('purchase');
-    return isPurchase ? sum : sum + item.unitPrice;
-  }, 0);
+  // Overall grand total across all items (only shown when showPrices is true)
+  const overallGrandTotal = allItems.reduce((sum, item) => sum + (item.unitPrice || 0), 0);
 
   return (
     <div 
@@ -225,15 +228,19 @@ const Receipt: React.FC<ReceiptProps> = ({
            <table className="w-full table-fixed text-[9px] border-collapse h-full">
               <thead>
                  <tr className={`text-center font-bold text-black ${isHalfPage ? 'h-[18px]' : 'h-[21px]'}`}>
-                    <th className="border-r border-black border-b px-1 py-0.5 w-[30%]">PARTICULARS</th>
-                    <th className="border-r border-black border-b px-1 py-0.5 w-[5%]">SOH</th>
-                    <th className="border-r border-black border-b px-1 py-0.5 w-[8%]">QTY REQUEST</th>
-                    <th className="border-r border-black border-b px-1 py-0.5 w-[5%]">UOM</th>
-                    <th className="border-r border-black border-b px-1 py-0.5 w-[8%]">ACTUAL DEL.</th>
-                    <th className="border-r border-black border-b px-1 py-0.5 w-[10%]">UNIT COST</th>
-                    <th className="border-r border-black border-b px-1 py-0.5 w-[10%]">TOTAL</th>
-                    <th className="border-r border-black border-b px-1 py-0.5 w-[12%]">{isManila ? '' : 'MODE OF PAYMENT'}</th>
-                    <th className="border-b border-black px-1 py-0.5 w-[12%]">REMARKS</th>
+                    <th className={`border-r border-black border-b px-1 py-0.5 ${hidePriceColumns ? 'w-[36%]' : 'w-[30%]'}`}>PARTICULARS</th>
+                    <th className={`border-r border-black border-b px-1 py-0.5 ${hidePriceColumns ? 'w-[7%]' : 'w-[5%]'}`}>SOH</th>
+                    <th className={`border-r border-black border-b px-1 py-0.5 ${hidePriceColumns ? 'w-[10%]' : 'w-[8%]'}`}>QTY REQUEST</th>
+                    <th className={`border-r border-black border-b px-1 py-0.5 ${hidePriceColumns ? 'w-[7%]' : 'w-[5%]'}`}>UOM</th>
+                    <th className={`border-r border-black border-b px-1 py-0.5 ${hidePriceColumns ? 'w-[10%]' : 'w-[8%]'}`}>ACTUAL DEL.</th>
+                    {!hidePriceColumns && (
+                      <>
+                        <th className="border-r border-black border-b px-1 py-0.5 w-[10%]">UNIT COST</th>
+                        <th className="border-r border-black border-b px-1 py-0.5 w-[10%]">TOTAL</th>
+                      </>
+                    )}
+                    <th className={`border-r border-black border-b px-1 py-0.5 ${hidePriceColumns ? 'w-[15%]' : 'w-[12%]'}`}>{isManila ? '' : 'MODE OF PAYMENT'}</th>
+                    <th className={`border-b border-black px-1 py-0.5 ${hidePriceColumns ? 'w-[15%]' : 'w-[12%]'}`}>REMARKS</th>
                  </tr>
               </thead>
               <tbody className="text-black">
@@ -255,12 +262,16 @@ const Receipt: React.FC<ReceiptProps> = ({
                       <td className="border-r border-black border-b border-gray-400 px-1 text-center font-bold">{item.quantity}</td>
                       <td className="border-r border-black border-b border-gray-400 px-1 text-center">{item.uom}</td>
                       <td className="border-r border-black border-b border-gray-400 px-1"></td>
-                      <td className="border-r border-black border-b border-gray-400 px-1 text-right">
-                          {!isPurchase && (item.quantity > 0 ? (item.unitPrice / item.quantity).toFixed(2) : '0.00')}
-                      </td>
-                      <td className="border-r border-black border-b border-gray-400 px-1 text-right font-bold">
-                          {!isPurchase && item.unitPrice.toFixed(2)}
-                      </td>
+                      {!hidePriceColumns && (
+                        <>
+                          <td className="border-r border-black border-b border-gray-400 px-1 text-right">
+                              {showPrices && item.quantity > 0 ? (item.unitPrice / item.quantity).toFixed(2) : ''}
+                          </td>
+                          <td className="border-r border-black border-b border-gray-400 px-1 text-right font-bold">
+                              {showPrices ? item.unitPrice.toFixed(2) : ''}
+                          </td>
+                        </>
+                      )}
                       <td className="border-r border-black border-b border-gray-400 px-1">
                          {!isManila && (
                           <div className="flex flex-row items-center gap-2 text-[7px] leading-none pl-1">
@@ -296,8 +307,12 @@ const Receipt: React.FC<ReceiptProps> = ({
                       <td className="border-r border-black border-b border-gray-400"></td>
                       <td className="border-r border-black border-b border-gray-400"></td>
                       <td className="border-r border-black border-b border-gray-400"></td>
-                      <td className="border-r border-black border-b border-gray-400"></td>
-                      <td className="border-r border-black border-b border-gray-400"></td>
+                      {!hidePriceColumns && (
+                        <>
+                          <td className="border-r border-black border-b border-gray-400"></td>
+                          <td className="border-r border-black border-b border-gray-400"></td>
+                        </>
+                      )}
                       <td className="border-r border-black border-b border-gray-400">
                           {!isManila && null}
                       </td>
@@ -306,32 +321,51 @@ const Receipt: React.FC<ReceiptProps> = ({
                  ))}
                  
                  {/* Table Bottom Row: Grand Total on last page, or Subtotal & Continuation Notice on earlier pages */}
-                 {isLastPage ? (
-                   <tr className={`${isHalfPage ? 'h-[18px]' : 'h-[21px]'} font-bold text-[10px]`}>
-                       <td className="border-r border-black border-t border-black" colSpan={5}></td>
-                       <td className="border-r border-black border-t border-black text-right px-1 bg-gray-200 text-black whitespace-nowrap">GRAND TOTAL</td>
-                       <td className="border-r border-black border-t border-black text-right px-1 text-black">
-                          {overallGrandTotal > 0 ? overallGrandTotal.toFixed(2) : ""}
-                       </td>
-                       <td className="border-r border-black border-t border-black text-center text-[8px] text-gray-600 font-semibold" colSpan={2}>
-                          {totalPages > 1 ? `(Page ${pageNumber} of ${totalPages})` : ''}
-                       </td>
-                   </tr>
+                 {hidePriceColumns ? (
+                   isLastPage ? (
+                     <tr className={`${isHalfPage ? 'h-[18px]' : 'h-[21px]'} font-bold text-[10px]`}>
+                         <td className="border-t border-black text-center text-[8.5px] font-bold text-gray-700 bg-gray-100 py-0.5 uppercase tracking-wider" colSpan={7}>
+                            TOTAL ITEMS REQUESTED: {allItems.length} {totalPages > 1 ? `• PAGE ${pageNumber} OF ${totalPages}` : ''}
+                         </td>
+                     </tr>
+                   ) : (
+                     <tr className={`${isHalfPage ? 'h-[18px]' : 'h-[21px]'} font-bold text-[10px]`}>
+                         <td className="border-t border-black text-center text-[8px] font-bold tracking-wider text-maroon-900 bg-gray-50 uppercase py-0.5" colSpan={5}>
+                            *** CONTINUED ON PAGE {pageNumber + 1} ***
+                         </td>
+                         <td className="border-t border-black text-center text-[8px] font-bold text-maroon-800" colSpan={2}>
+                            SEE PAGE {pageNumber + 1} &gt;&gt;
+                         </td>
+                     </tr>
+                   )
                  ) : (
-                   <tr className={`${isHalfPage ? 'h-[18px]' : 'h-[21px]'} font-bold text-[10px]`}>
-                       <td className="border-r border-black border-t border-black text-center text-[8px] font-bold tracking-wider text-maroon-900 bg-gray-50 uppercase" colSpan={5}>
-                          *** CONTINUED ON PAGE {pageNumber + 1} ***
-                       </td>
-                       <td className="border-r border-black border-t border-black text-right px-1 bg-gray-200 text-black whitespace-nowrap text-[9px]">
-                          SUBTOTAL (PG {pageNumber})
-                       </td>
-                       <td className="border-r border-black border-t border-black text-right px-1 text-black">
-                          {pageSubtotal > 0 ? pageSubtotal.toFixed(2) : ""}
-                       </td>
-                       <td className="border-r border-black border-t border-black text-center text-[8px] font-bold text-maroon-800" colSpan={2}>
-                          SEE PAGE {pageNumber + 1} &gt;&gt;
-                       </td>
-                   </tr>
+                   isLastPage ? (
+                     <tr className={`${isHalfPage ? 'h-[18px]' : 'h-[21px]'} font-bold text-[10px]`}>
+                         <td className="border-r border-black border-t border-black" colSpan={5}></td>
+                         <td className="border-r border-black border-t border-black text-right px-1 bg-gray-200 text-black whitespace-nowrap">GRAND TOTAL</td>
+                         <td className="border-r border-black border-t border-black text-right px-1 text-black font-bold">
+                            {showPrices && overallGrandTotal > 0 ? overallGrandTotal.toFixed(2) : ""}
+                         </td>
+                         <td className="border-r border-black border-t border-black text-center text-[8px] text-gray-600 font-semibold" colSpan={2}>
+                            {totalPages > 1 ? `(Page ${pageNumber} of ${totalPages})` : ''}
+                         </td>
+                     </tr>
+                   ) : (
+                     <tr className={`${isHalfPage ? 'h-[18px]' : 'h-[21px]'} font-bold text-[10px]`}>
+                         <td className="border-r border-black border-t border-black text-center text-[8px] font-bold tracking-wider text-maroon-900 bg-gray-50 uppercase" colSpan={5}>
+                            *** CONTINUED ON PAGE {pageNumber + 1} ***
+                         </td>
+                         <td className="border-r border-black border-t border-black text-right px-1 bg-gray-200 text-black whitespace-nowrap text-[9px]">
+                            SUBTOTAL (PG {pageNumber})
+                         </td>
+                         <td className="border-r border-black border-t border-black text-right px-1 text-black font-bold">
+                            {showPrices && pageSubtotal > 0 ? pageSubtotal.toFixed(2) : ""}
+                         </td>
+                         <td className="border-r border-black border-t border-black text-center text-[8px] font-bold text-maroon-800" colSpan={2}>
+                            SEE PAGE {pageNumber + 1} &gt;&gt;
+                         </td>
+                     </tr>
+                   )
                  )}
               </tbody>
            </table>
@@ -446,6 +480,7 @@ const PrintableDocument: React.FC<PrintableDocumentProps> = ({
                 pageItems={dataPages[0]} 
                 allItems={data.items} 
                 isDraft={false} 
+                settings={settings}
               />
               {showDraft && (
                 <Receipt 
@@ -455,6 +490,7 @@ const PrintableDocument: React.FC<PrintableDocumentProps> = ({
                   pageItems={dataPages[0]} 
                   allItems={data.items} 
                   isDraft={true} 
+                  settings={settings}
                 />
               )}
               {secondaryData && !showDraft && (
@@ -465,6 +501,7 @@ const PrintableDocument: React.FC<PrintableDocumentProps> = ({
                   pageItems={secondaryPages[0] || secondaryData.items} 
                   allItems={secondaryData.items} 
                   isDraft={false} 
+                  settings={settings}
                 />
               )}
               {secondaryData && showDraft && (
@@ -476,6 +513,7 @@ const PrintableDocument: React.FC<PrintableDocumentProps> = ({
                     pageItems={secondaryPages[0] || secondaryData.items} 
                     allItems={secondaryData.items} 
                     isDraft={false} 
+                    settings={settings}
                   />
                   <Receipt 
                     data={secondaryData} 
@@ -484,6 +522,7 @@ const PrintableDocument: React.FC<PrintableDocumentProps> = ({
                     pageItems={secondaryPages[0] || secondaryData.items} 
                     allItems={secondaryData.items} 
                     isDraft={true} 
+                    settings={settings}
                   />
                 </>
               )}
@@ -513,6 +552,7 @@ const PrintableDocument: React.FC<PrintableDocumentProps> = ({
                       pageItems={pageItems} 
                       allItems={data.items} 
                       isDraft={false} 
+                      settings={settings}
                     />
                   </div>
                 );
@@ -540,6 +580,7 @@ const PrintableDocument: React.FC<PrintableDocumentProps> = ({
                       pageItems={pageItems} 
                       allItems={data.items} 
                       isDraft={true} 
+                      settings={settings}
                     />
                   </div>
                 );
