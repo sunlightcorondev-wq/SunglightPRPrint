@@ -36,6 +36,7 @@ export interface PrintSettings {
   showDraft?: boolean;
   secondaryDocId?: string | null;
   priceDisplay?: 'blank' | 'hidden' | 'show';
+  showActualDel?: boolean;
 }
 
 export interface AppState {

@@ -100,12 +100,123 @@ const Receipt: React.FC<ReceiptProps> = ({
   const isManila = data.pr_for.toLowerCase() === 'manila';
   const isLastPage = pageNumber === totalPages;
 
-  // Price visibility: default is 'blank' (prices removed from form, blank columns for manual entry)
-  // 'hidden' removes price columns entirely
+  // Price visibility: default is 'hidden' (prices & price columns removed from request form)
+  // 'blank' keeps empty price columns for manual entry
   // 'show' displays calculated prices
-  const priceDisplay = settings?.priceDisplay || 'blank';
+  const priceDisplay = settings?.priceDisplay || 'hidden';
   const showPrices = priceDisplay === 'show';
   const hidePriceColumns = priceDisplay === 'hidden';
+  const showActualDel = settings?.showActualDel ?? false;
+  // Mode of payment only applies to local/non-Manila forms; Manila forms never render Mode of Payment
+  const showModeOfPayment = !isManila;
+
+  // Auto-fit font styling for remarks
+  const getRemarksClass = (text: string) => {
+    if (!text) return 'text-[8.5px]';
+    const len = text.length;
+    if (len > 50) return 'text-[6px] leading-[1.05]';
+    if (len > 30) return 'text-[7px] leading-[1.1]';
+    if (len > 16) return 'text-[7.5px] leading-[1.15]';
+    return 'text-[8.5px] leading-tight';
+  };
+
+  // Dynamic column width distribution based on active columns:
+  let particularsWidth = 'w-[50%]';
+  let sohWidth = 'w-[8%]';
+  let qtyWidth = 'w-[10%]';
+  let uomWidth = 'w-[8%]';
+  let actualDelWidth = 'w-[8%]';
+  let unitCostWidth = 'w-[10%]';
+  let totalWidth = 'w-[10%]';
+  let paymentWidth = 'w-[14%]';
+  let remarksWidth = 'w-[24%]';
+
+  if (hidePriceColumns) {
+    if (showModeOfPayment) {
+      if (showActualDel) {
+        particularsWidth = 'w-[36%]';
+        sohWidth = 'w-[6%]';
+        qtyWidth = 'w-[8%]';
+        uomWidth = 'w-[6%]';
+        actualDelWidth = 'w-[8%]';
+        paymentWidth = 'w-[14%]';
+        remarksWidth = 'w-[22%]';
+      } else {
+        particularsWidth = 'w-[42%]';
+        sohWidth = 'w-[7%]';
+        qtyWidth = 'w-[9%]';
+        uomWidth = 'w-[7%]';
+        paymentWidth = 'w-[14%]';
+        remarksWidth = 'w-[21%]';
+      }
+    } else {
+      // Manila (no payment column)
+      if (showActualDel) {
+        particularsWidth = 'w-[44%]';
+        sohWidth = 'w-[7%]';
+        qtyWidth = 'w-[9%]';
+        uomWidth = 'w-[7%]';
+        actualDelWidth = 'w-[8%]';
+        remarksWidth = 'w-[25%]';
+      } else {
+        particularsWidth = 'w-[50%]';
+        sohWidth = 'w-[8%]';
+        qtyWidth = 'w-[10%]';
+        uomWidth = 'w-[8%]';
+        remarksWidth = 'w-[24%]';
+      }
+    }
+  } else {
+    // Prices enabled
+    if (showModeOfPayment) {
+      if (showActualDel) {
+        particularsWidth = 'w-[26%]';
+        sohWidth = 'w-[5%]';
+        qtyWidth = 'w-[7%]';
+        uomWidth = 'w-[5%]';
+        actualDelWidth = 'w-[8%]';
+        unitCostWidth = 'w-[10%]';
+        totalWidth = 'w-[10%]';
+        paymentWidth = 'w-[12%]';
+        remarksWidth = 'w-[17%]';
+      } else {
+        particularsWidth = 'w-[32%]';
+        sohWidth = 'w-[5%]';
+        qtyWidth = 'w-[7%]';
+        uomWidth = 'w-[5%]';
+        unitCostWidth = 'w-[10%]';
+        totalWidth = 'w-[10%]';
+        paymentWidth = 'w-[13%]';
+        remarksWidth = 'w-[18%]';
+      }
+    } else {
+      // Manila with prices
+      if (showActualDel) {
+        particularsWidth = 'w-[30%]';
+        sohWidth = 'w-[6%]';
+        qtyWidth = 'w-[8%]';
+        uomWidth = 'w-[6%]';
+        actualDelWidth = 'w-[8%]';
+        unitCostWidth = 'w-[10%]';
+        totalWidth = 'w-[10%]';
+        remarksWidth = 'w-[22%]';
+      } else {
+        particularsWidth = 'w-[36%]';
+        sohWidth = 'w-[6%]';
+        qtyWidth = 'w-[8%]';
+        uomWidth = 'w-[6%]';
+        unitCostWidth = 'w-[10%]';
+        totalWidth = 'w-[10%]';
+        remarksWidth = 'w-[24%]';
+      }
+    }
+  }
+
+  const prePriceColCount = 4 + (showActualDel ? 1 : 0);
+  const postPriceColCount = (showModeOfPayment ? 1 : 0) + 1;
+  const totalColCount = hidePriceColumns 
+    ? (prePriceColCount + (showModeOfPayment ? 1 : 0) + 1)
+    : (prePriceColCount + 2 + postPriceColCount);
 
   // Dimensions: 210mm x 296.5mm ensures 100% full A4 coverage with zero trailing overflow
   const dim = {
@@ -228,19 +339,23 @@ const Receipt: React.FC<ReceiptProps> = ({
            <table className="w-full table-fixed text-[9px] border-collapse h-full">
               <thead>
                  <tr className={`text-center font-bold text-black ${isHalfPage ? 'h-[18px]' : 'h-[21px]'}`}>
-                    <th className={`border-r border-black border-b px-1 py-0.5 ${hidePriceColumns ? 'w-[36%]' : 'w-[30%]'}`}>PARTICULARS</th>
-                    <th className={`border-r border-black border-b px-1 py-0.5 ${hidePriceColumns ? 'w-[7%]' : 'w-[5%]'}`}>SOH</th>
-                    <th className={`border-r border-black border-b px-1 py-0.5 ${hidePriceColumns ? 'w-[10%]' : 'w-[8%]'}`}>QTY REQUEST</th>
-                    <th className={`border-r border-black border-b px-1 py-0.5 ${hidePriceColumns ? 'w-[7%]' : 'w-[5%]'}`}>UOM</th>
-                    <th className={`border-r border-black border-b px-1 py-0.5 ${hidePriceColumns ? 'w-[10%]' : 'w-[8%]'}`}>ACTUAL DEL.</th>
+                    <th className={`border-r border-black border-b px-1 py-0.5 ${particularsWidth}`}>PARTICULARS</th>
+                    <th className={`border-r border-black border-b px-1 py-0.5 ${sohWidth}`}>SOH</th>
+                    <th className={`border-r border-black border-b px-1 py-0.5 ${qtyWidth}`}>QTY REQUEST</th>
+                    <th className={`border-r border-black border-b px-1 py-0.5 ${uomWidth}`}>UOM</th>
+                    {showActualDel && (
+                      <th className={`border-r border-black border-b px-1 py-0.5 ${actualDelWidth}`}>ACTUAL DEL.</th>
+                    )}
                     {!hidePriceColumns && (
                       <>
-                        <th className="border-r border-black border-b px-1 py-0.5 w-[10%]">UNIT COST</th>
-                        <th className="border-r border-black border-b px-1 py-0.5 w-[10%]">TOTAL</th>
+                        <th className={`border-r border-black border-b px-1 py-0.5 ${unitCostWidth}`}>UNIT COST</th>
+                        <th className={`border-r border-black border-b px-1 py-0.5 ${totalWidth}`}>TOTAL</th>
                       </>
                     )}
-                    <th className={`border-r border-black border-b px-1 py-0.5 ${hidePriceColumns ? 'w-[15%]' : 'w-[12%]'}`}>{isManila ? '' : 'MODE OF PAYMENT'}</th>
-                    <th className={`border-b border-black px-1 py-0.5 ${hidePriceColumns ? 'w-[15%]' : 'w-[12%]'}`}>REMARKS</th>
+                    {showModeOfPayment && (
+                      <th className={`border-r border-black border-b px-1 py-0.5 ${paymentWidth}`}>MODE OF PAYMENT</th>
+                    )}
+                    <th className={`border-b border-black px-1 py-0.5 ${remarksWidth}`}>REMARKS</th>
                  </tr>
               </thead>
               <tbody className="text-black">
@@ -257,11 +372,13 @@ const Receipt: React.FC<ReceiptProps> = ({
 
                    return (
                    <tr key={idx} className={rowHeightClass}>
-                      <td className="border-r border-black border-b border-gray-400 px-1 font-bold uppercase truncate">{item.description}</td>
+                      <td className="border-r border-black border-b border-gray-400 px-1 font-bold uppercase truncate" title={item.description}>{item.description}</td>
                       <td className="border-r border-black border-b border-gray-400 px-1 text-center font-bold">{item.soh}</td>
                       <td className="border-r border-black border-b border-gray-400 px-1 text-center font-bold">{item.quantity}</td>
                       <td className="border-r border-black border-b border-gray-400 px-1 text-center">{item.uom}</td>
-                      <td className="border-r border-black border-b border-gray-400 px-1"></td>
+                      {showActualDel && (
+                        <td className="border-r border-black border-b border-gray-400 px-1"></td>
+                      )}
                       {!hidePriceColumns && (
                         <>
                           <td className="border-r border-black border-b border-gray-400 px-1 text-right">
@@ -272,30 +389,36 @@ const Receipt: React.FC<ReceiptProps> = ({
                           </td>
                         </>
                       )}
-                      <td className="border-r border-black border-b border-gray-400 px-1">
-                         {!isManila && (
-                          <div className="flex flex-row items-center gap-2 text-[7px] leading-none pl-1">
-                             {isWarehouse ? (
-                               <div className="flex items-center gap-1">
-                                   <div className="w-1.5 h-1.5 border border-black bg-black"></div> 
-                                   WHRSE
-                               </div>
-                             ) : (
-                               <>
-                                   <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 border border-black"></div> CASH</div>
-                                   <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 border border-black"></div> CREDIT</div>
-                                   {!isPurchase && (
-                                       <div className="flex items-center gap-1">
-                                           <div className="w-1.5 h-1.5 border border-black"></div> 
-                                           WHRSE
-                                       </div>
-                                   )}
-                               </>
-                             )}
-                          </div>
-                         )}
+                      {showModeOfPayment && (
+                        <td className="border-r border-black border-b border-gray-400 px-1">
+                           <div className="flex flex-row items-center gap-2 text-[7px] leading-none pl-1">
+                              {isWarehouse ? (
+                                <div className="flex items-center gap-1">
+                                    <div className="w-1.5 h-1.5 border border-black bg-black"></div> 
+                                    WHRSE
+                                </div>
+                              ) : (
+                                <>
+                                    <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 border border-black"></div> CASH</div>
+                                    <div className="flex items-center gap-1"><div className="w-1.5 h-1.5 border border-black"></div> CREDIT</div>
+                                    {!isPurchase && (
+                                        <div className="flex items-center gap-1">
+                                            <div className="w-1.5 h-1.5 border border-black"></div> 
+                                            WHRSE
+                                        </div>
+                                    )}
+                                </>
+                              )}
+                           </div>
+                        </td>
+                      )}
+                      <td className="border-b border-gray-400 px-1.5 align-middle overflow-hidden" title={displayRemarks}>
+                         {displayRemarks ? (
+                           <div className={`break-words whitespace-normal text-left font-medium text-black ${getRemarksClass(displayRemarks)}`}>
+                             {displayRemarks}
+                           </div>
+                         ) : null}
                       </td>
-                      <td className="border-b border-gray-400 px-1 truncate">{displayRemarks}</td>
                    </tr>
                  )})}
 
@@ -306,16 +429,18 @@ const Receipt: React.FC<ReceiptProps> = ({
                       <td className="border-r border-black border-b border-gray-400"></td>
                       <td className="border-r border-black border-b border-gray-400"></td>
                       <td className="border-r border-black border-b border-gray-400"></td>
-                      <td className="border-r border-black border-b border-gray-400"></td>
+                      {showActualDel && (
+                        <td className="border-r border-black border-b border-gray-400"></td>
+                      )}
                       {!hidePriceColumns && (
                         <>
                           <td className="border-r border-black border-b border-gray-400"></td>
                           <td className="border-r border-black border-b border-gray-400"></td>
                         </>
                       )}
-                      <td className="border-r border-black border-b border-gray-400">
-                          {!isManila && null}
-                      </td>
+                      {showModeOfPayment && (
+                        <td className="border-r border-black border-b border-gray-400"></td>
+                      )}
                       <td className="border-b border-gray-400"></td>
                    </tr>
                  ))}
@@ -324,13 +449,13 @@ const Receipt: React.FC<ReceiptProps> = ({
                  {hidePriceColumns ? (
                    isLastPage ? (
                      <tr className={`${isHalfPage ? 'h-[18px]' : 'h-[21px]'} font-bold text-[10px]`}>
-                         <td className="border-t border-black text-center text-[8.5px] font-bold text-gray-700 bg-gray-100 py-0.5 uppercase tracking-wider" colSpan={7}>
+                         <td className="border-t border-black text-center text-[8.5px] font-bold text-gray-700 bg-gray-100 py-0.5 uppercase tracking-wider" colSpan={totalColCount}>
                             TOTAL ITEMS REQUESTED: {allItems.length} {totalPages > 1 ? `• PAGE ${pageNumber} OF ${totalPages}` : ''}
                          </td>
                      </tr>
                    ) : (
                      <tr className={`${isHalfPage ? 'h-[18px]' : 'h-[21px]'} font-bold text-[10px]`}>
-                         <td className="border-t border-black text-center text-[8px] font-bold tracking-wider text-maroon-900 bg-gray-50 uppercase py-0.5" colSpan={5}>
+                         <td className="border-t border-black text-center text-[8px] font-bold tracking-wider text-maroon-900 bg-gray-50 uppercase py-0.5" colSpan={Math.max(1, totalColCount - 2)}>
                             *** CONTINUED ON PAGE {pageNumber + 1} ***
                          </td>
                          <td className="border-t border-black text-center text-[8px] font-bold text-maroon-800" colSpan={2}>
@@ -341,18 +466,18 @@ const Receipt: React.FC<ReceiptProps> = ({
                  ) : (
                    isLastPage ? (
                      <tr className={`${isHalfPage ? 'h-[18px]' : 'h-[21px]'} font-bold text-[10px]`}>
-                         <td className="border-r border-black border-t border-black" colSpan={5}></td>
+                         <td className="border-r border-black border-t border-black" colSpan={prePriceColCount}></td>
                          <td className="border-r border-black border-t border-black text-right px-1 bg-gray-200 text-black whitespace-nowrap">GRAND TOTAL</td>
                          <td className="border-r border-black border-t border-black text-right px-1 text-black font-bold">
                             {showPrices && overallGrandTotal > 0 ? overallGrandTotal.toFixed(2) : ""}
                          </td>
-                         <td className="border-r border-black border-t border-black text-center text-[8px] text-gray-600 font-semibold" colSpan={2}>
+                         <td className="border-r border-black border-t border-black text-center text-[8px] text-gray-600 font-semibold" colSpan={postPriceColCount}>
                             {totalPages > 1 ? `(Page ${pageNumber} of ${totalPages})` : ''}
                          </td>
                      </tr>
                    ) : (
                      <tr className={`${isHalfPage ? 'h-[18px]' : 'h-[21px]'} font-bold text-[10px]`}>
-                         <td className="border-r border-black border-t border-black text-center text-[8px] font-bold tracking-wider text-maroon-900 bg-gray-50 uppercase" colSpan={5}>
+                         <td className="border-r border-black border-t border-black text-center text-[8px] font-bold tracking-wider text-maroon-900 bg-gray-50 uppercase" colSpan={prePriceColCount}>
                             *** CONTINUED ON PAGE {pageNumber + 1} ***
                          </td>
                          <td className="border-r border-black border-t border-black text-right px-1 bg-gray-200 text-black whitespace-nowrap text-[9px]">
@@ -361,7 +486,7 @@ const Receipt: React.FC<ReceiptProps> = ({
                          <td className="border-r border-black border-t border-black text-right px-1 text-black font-bold">
                             {showPrices && pageSubtotal > 0 ? pageSubtotal.toFixed(2) : ""}
                          </td>
-                         <td className="border-r border-black border-t border-black text-center text-[8px] font-bold text-maroon-800" colSpan={2}>
+                         <td className="border-r border-black border-t border-black text-center text-[8px] font-bold text-maroon-800" colSpan={postPriceColCount}>
                             SEE PAGE {pageNumber + 1} &gt;&gt;
                          </td>
                      </tr>

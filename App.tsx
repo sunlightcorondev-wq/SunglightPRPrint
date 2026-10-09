@@ -150,7 +150,8 @@ const App: React.FC = () => {
     paperSize: 'A4',
     orientation: 'portrait',
     showDraft: true,
-    priceDisplay: 'blank'
+    priceDisplay: 'hidden',
+    showActualDel: false
   });
 
   // Database Settings State
@@ -825,43 +826,43 @@ const App: React.FC = () => {
                       Pricing on Request Form
                     </label>
                     <span className="text-[10px] text-maroon-300 font-medium">
-                      {(printSettings.priceDisplay || 'blank') === 'blank' ? 'Blank Price Columns' : printSettings.priceDisplay === 'hidden' ? 'Price Columns Hidden' : 'Prices Shown'}
+                      {printSettings.priceDisplay === 'hidden' || !printSettings.priceDisplay ? 'Price Columns Hidden (Default)' : printSettings.priceDisplay === 'blank' ? 'Blank Price Columns' : 'Prices Shown'}
                     </span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                     <button
                       type="button"
+                      onClick={() => setPrintSettings(prev => ({ ...prev, priceDisplay: 'hidden' }))}
+                      className={`p-2.5 rounded-xl border text-left transition-all ${
+                        printSettings.priceDisplay === 'hidden' || !printSettings.priceDisplay
+                          ? 'bg-gold-500/20 border-gold-500 text-white shadow-sm ring-1 ring-gold-500'
+                          : 'bg-maroon-950/60 border-maroon-700/60 text-maroon-300 hover:border-maroon-600'
+                      }`}
+                    >
+                      <div className="text-xs font-bold text-white flex items-center justify-between">
+                        <span>Hide Columns (Default)</span>
+                        {(printSettings.priceDisplay === 'hidden' || !printSettings.priceDisplay) && <span className="text-gold-400 font-bold">✓</span>}
+                      </div>
+                      <div className="text-[10px] text-maroon-300 mt-1 leading-tight">
+                        Removes price columns to maximize item particulars and remarks space
+                      </div>
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => setPrintSettings(prev => ({ ...prev, priceDisplay: 'blank' }))}
                       className={`p-2.5 rounded-xl border text-left transition-all ${
-                        (printSettings.priceDisplay || 'blank') === 'blank'
+                        printSettings.priceDisplay === 'blank'
                           ? 'bg-gold-500/20 border-gold-500 text-white shadow-sm ring-1 ring-gold-500'
                           : 'bg-maroon-950/60 border-maroon-700/60 text-maroon-300 hover:border-maroon-600'
                       }`}
                     >
                       <div className="text-xs font-bold text-white flex items-center justify-between">
                         <span>Blank Prices</span>
-                        {(printSettings.priceDisplay || 'blank') === 'blank' && <span className="text-gold-400 font-bold">✓</span>}
+                        {printSettings.priceDisplay === 'blank' && <span className="text-gold-400 font-bold">✓</span>}
                       </div>
                       <div className="text-[10px] text-maroon-300 mt-1 leading-tight">
                         Standard voucher format with empty price cells for manual procurement entry
-                      </div>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setPrintSettings(prev => ({ ...prev, priceDisplay: 'hidden' }))}
-                      className={`p-2.5 rounded-xl border text-left transition-all ${
-                        printSettings.priceDisplay === 'hidden'
-                          ? 'bg-gold-500/20 border-gold-500 text-white shadow-sm ring-1 ring-gold-500'
-                          : 'bg-maroon-950/60 border-maroon-700/60 text-maroon-300 hover:border-maroon-600'
-                      }`}
-                    >
-                      <div className="text-xs font-bold text-white flex items-center justify-between">
-                        <span>Hide Columns</span>
-                        {printSettings.priceDisplay === 'hidden' && <span className="text-gold-400 font-bold">✓</span>}
-                      </div>
-                      <div className="text-[10px] text-maroon-300 mt-1 leading-tight">
-                        Removes price columns to maximize item particulars space
                       </div>
                     </button>
 
@@ -883,6 +884,22 @@ const App: React.FC = () => {
                       </div>
                     </button>
                   </div>
+                </div>
+
+                {/* Optional Actual Delivery Column */}
+                <div className="pt-2 border-t border-maroon-800/60">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <input 
+                      type="checkbox"
+                      checked={!!printSettings.showActualDel}
+                      onChange={(e) => setPrintSettings(prev => ({ ...prev, showActualDel: e.target.checked }))}
+                      className="w-4 h-4 rounded border-maroon-700 bg-maroon-950 text-gold-500 focus:ring-gold-500"
+                    />
+                    <div>
+                      <span className="text-xs font-bold text-maroon-200">Include "Actual Del." Column</span>
+                      <p className="text-[10px] text-maroon-400">Keep unchecked to omit this blank column and give extra room to Remarks and Particulars</p>
+                    </div>
+                  </label>
                 </div>
 
                 {/* Combine with another request */}
@@ -1310,17 +1327,17 @@ const App: React.FC = () => {
 
           <div className="flex items-center gap-2 sm:gap-3">
              <div className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-maroon-900/60 border border-maroon-800 text-xs text-maroon-200">
-               <span className="text-maroon-400">Pricing:</span>
+               <span className="text-maroon-400">Prices:</span>
                <button
                  type="button"
                  onClick={() => setPrintSettings(prev => ({
                    ...prev,
-                   priceDisplay: (prev.priceDisplay || 'blank') === 'blank' ? 'hidden' : (prev.priceDisplay === 'hidden' ? 'show' : 'blank')
+                   priceDisplay: (prev.priceDisplay || 'hidden') === 'hidden' ? 'blank' : (prev.priceDisplay === 'blank' ? 'show' : 'hidden')
                  }))}
                  className="font-bold text-gold-400 hover:text-gold-300 transition-colors flex items-center gap-1 cursor-pointer"
-                 title="Click to cycle pricing format: Blank -> Hidden -> Show"
+                 title="Click to cycle pricing format: Hidden (No Prices) -> Blank Columns -> Show Prices"
                >
-                 <span>{(printSettings.priceDisplay || 'blank') === 'blank' ? 'Blank (No Prices)' : printSettings.priceDisplay === 'hidden' ? 'Columns Hidden' : 'Prices Shown'}</span>
+                 <span>{(printSettings.priceDisplay || 'hidden') === 'hidden' ? 'Hidden (No Prices)' : printSettings.priceDisplay === 'blank' ? 'Blank Columns' : 'Prices Shown'}</span>
                  <span className="text-[10px] text-maroon-500">⇄</span>
                </button>
              </div>
